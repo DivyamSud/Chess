@@ -687,6 +687,7 @@ def main():
 	run = True
 	clock = pygame.time.Clock()
 	game = Game(Window)
+	print(type(game.get_board()))
 
 	while run:
 		clock.tick(fps)
