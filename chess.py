@@ -157,14 +157,11 @@ class Board():
 						self.board[row][col] = Piece(row, col, black, knight)
 						self.board[row][col].draw_knight(Window, color)
 
-		valid_moves = get_all_valid_moves(Game.get_board(self), color)
-		for move in valid_moves:
-			space = self.get_piece(move[0], move[1])
-			if space != 0 and space.rank == king:
-				if color == white:
-					self.is_black_check = True
-				else:
-					self.is_white_check = True
+		if color == black:
+			self.is_white_check = is_check(self, white)
+
+		if color == white:
+			self.is_black_check = is_check(self, black)			
 
 	def get_piece(self, row, col):
 		return self.board[row][col]
@@ -206,7 +203,7 @@ class Board():
 	def remove(self, row, col):
 		self.board[row][col] = 0
 
-	def get_valid_moves(self, piece):
+	def get_valid_moves(self, piece, condition=True):
 		moves = []
 		color, rank = piece.__repr__()
 		col = piece.col
@@ -234,32 +231,34 @@ class Board():
 			moves.extend(self._castling_right(row, col, color))
 			moves.extend(self._castling_left(row, col, color))
 
+		copy_moves = copy.deepcopy(moves)
+
+
 		if color == white:
-			if self.is_white_check:
+			if condition == True:
 				for move in moves:
-					temp_board = copy.deepcopy(Game.get_board(self))
+					temp_board = copy.deepcopy(self)
 					temp_piece = copy.deepcopy(piece)
 					new_board = simulate_move(temp_piece, temp_board, move)
 					opp_moves = get_all_valid_moves(new_board, black)
 					for opp_move in opp_moves:
 						new_piece = new_board.get_piece(opp_move[0], opp_move[1])
-						color, rank = new_piece.__repr__()
-						if new_piece != 0 and rank == king:
-							moves.remove(move)
-						  
-		if color == black:
-			if self.is_black_check:
+						if new_piece != 0 and new_piece.rank == king:
+							copy_moves.remove(move)
+							
+		elif color == black:
+			if condition == True:
 				for move in moves:
-					temp_board = copy.deepcopy(Game.get_board(self))
+					temp_board = copy.deepcopy(self)
 					temp_piece = copy.deepcopy(piece)
 					new_board = simulate_move(temp_piece, temp_board, move)
 					opp_moves = get_all_valid_moves(new_board, white)
 					for opp_move in opp_moves:
 						new_piece = new_board.get_piece(opp_move[0], opp_move[1])
-						color, rank = new_piece.__repr__()
-						if new_piece != 0 and rank == king:
-							moves.remove(move)
-
+						if new_piece != 0 and new_piece.rank == king:
+							copy_moves.remove(move)
+				
+		moves = copy_moves
 		return moves
 
 	def _castling_left(self, row, col, color):
@@ -649,15 +648,11 @@ class Game():
 				self.win.blit(valid_move_piece, 
 					(col*square_size-valid_move_piece.get_width()//2+square_size//2, row*square_size-valid_move_piece.get_height()//2+square_size//2))
 
-	def get_board(self):
-		return self.board
-
 def get_all_valid_moves(board, color):
-		print(type(board))
 		all_valid_moves = []
 		pieces = get_all_pieces(board, color)
 		for piece in pieces:
-			valid_moves = board.get_valid_moves(piece)
+			valid_moves = board.get_valid_moves(piece, False)
 			all_valid_moves.extend(valid_moves)
 
 		return all_valid_moves
@@ -670,11 +665,24 @@ def get_all_pieces(board, color):
 					pieces.append(piece)
 		return pieces
 
+def is_check(board, color):
+	if color == white:
+		color = black
+	else:
+		color = white
+	moves = get_all_valid_moves(board, color)
+	for row, col in moves:
+		piece = board.get_piece(row, col)
+		if piece != 0 and piece.rank == king:
+			return True
+	return False
+
 def simulate_move(piece, board, move):
-	piece = board.get_piece(move[0], move[1])
-	if piece != 0:
-		board.remove(piece)
-	board.move(piece, move[0], move[1])
+	space = board.get_piece(move[0], move[1])
+	if space != 0:
+		board.remove(space.row, space.col)
+	board.board[piece.row][piece.col], board.board[move[0]][move[1]] = board.board[move[0]][move[1]], board.board[piece.row][piece.col]
+	piece.move(move[0], move[1])
 	return board
 
 def get_pos_from_mouse(pos):
@@ -687,7 +695,6 @@ def main():
 	run = True
 	clock = pygame.time.Clock()
 	game = Game(Window)
-	print(type(game.get_board()))
 
 	while run:
 		clock.tick(fps)
